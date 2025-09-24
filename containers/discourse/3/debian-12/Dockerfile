@@ -44,7 +44,7 @@ RUN git clone --depth=1 https://github.com/rbenv/rbenv.git $RBENV_ROOT \
     && $RBENV_ROOT/bin/rbenv global 3.3.9 \
     && $RBENV_ROOT/bin/rbenv rehash \
     && gem update --system --no-document \
-    && gem install bundler --no-document --retry 3
+    && gem install bundler --no-document
 
 # Create discourse user for build
 RUN groupadd -r discourse && useradd -r -g discourse -d /opt/discourse -s /bin/bash discourse
@@ -60,7 +60,7 @@ USER discourse
 RUN bundle config set --local deployment 'true' \
     && bundle config set --local without 'development test' \
     && bundle config set --local path 'vendor/bundle' \
-    && bundle install --jobs $(nproc) --retry 3
+    && bundle install --jobs $(nproc)
 
 # Install Node.js dependencies and precompile assets
 ENV NODE_ENV=production
