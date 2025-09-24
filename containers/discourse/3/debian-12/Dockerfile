@@ -42,8 +42,9 @@ RUN git clone --depth=1 https://github.com/rbenv/rbenv.git $RBENV_ROOT \
     && git clone --depth=1 https://github.com/rbenv/ruby-build.git $RBENV_ROOT/plugins/ruby-build \
     && $RBENV_ROOT/bin/rbenv install 3.3.9 \
     && $RBENV_ROOT/bin/rbenv global 3.3.9 \
-    && eval "$($RBENV_ROOT/bin/rbenv init -)" \
-    && gem install bundler --no-document
+    && $RBENV_ROOT/bin/rbenv rehash \
+    && gem update --system --no-document \
+    && gem install bundler --no-document --retry 3
 
 # Create discourse user for build
 RUN groupadd -r discourse && useradd -r -g discourse -d /opt/discourse -s /bin/bash discourse
@@ -56,8 +57,7 @@ RUN git clone --depth=1 --branch=v${DISCOURSE_VERSION} ${DISCOURSE_REPOSITORY} .
 USER discourse
 
 # Install Ruby dependencies
-RUN eval "$($RBENV_ROOT/bin/rbenv init -)" \
-    && bundle config set --local deployment 'true' \
+RUN bundle config set --local deployment 'true' \
     && bundle config set --local without 'development test' \
     && bundle config set --local path 'vendor/bundle' \
     && bundle install --jobs $(nproc) --retry 3
@@ -65,8 +65,7 @@ RUN eval "$($RBENV_ROOT/bin/rbenv init -)" \
 # Install Node.js dependencies and precompile assets
 ENV NODE_ENV=production
 ENV RAILS_ENV=production
-RUN eval "$($RBENV_ROOT/bin/rbenv init -)" \
-    && yarn install --production --frozen-lockfile \
+RUN yarn install --production --frozen-lockfile \
     && bundle exec rake assets:precompile \
     && yarn cache clean
 
@@ -90,7 +89,7 @@ LABEL org.opencontainers.image.title="discourse" \
       org.opencontainers.image.version="${DISCOURSE_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/discourse/discourse" \
+      org.opencontainers.image.source="https://github.com/favish/bitnami-resources" \
       org.opencontainers.image.url="https://www.discourse.org/" \
       org.opencontainers.image.documentation="https://meta.discourse.org/" \
       org.opencontainers.image.vendor="Discourse" \

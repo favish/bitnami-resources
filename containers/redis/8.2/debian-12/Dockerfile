@@ -66,11 +66,11 @@ LABEL org.opencontainers.image.title="redis" \
       org.opencontainers.image.version="${REDIS_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/redis/redis" \
+      org.opencontainers.image.source="https://github.com/favish/bitnami-resources" \
       org.opencontainers.image.url="https://redis.io/" \
       org.opencontainers.image.documentation="https://redis.io/documentation" \
       org.opencontainers.image.vendor="Redis" \
-      maintainer="production-team"
+      maintainer="favish-team"
 
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
