@@ -28,10 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Setup Node.js repository and install Node.js
+# Setup Node.js repository and install Node.js with package managers
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update && apt-get install -y nodejs \
+    && corepack enable \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Enable Corepack and install modern Yarn
@@ -47,6 +48,7 @@ RUN git clone --depth=1 https://github.com/rbenv/rbenv.git $RBENV_ROOT \
     && $RBENV_ROOT/bin/rbenv install 3.3.9 \
     && $RBENV_ROOT/bin/rbenv global 3.3.9 \
     && $RBENV_ROOT/bin/rbenv rehash \
+    && gem update --system --no-document \
     && gem install bundler --no-document
 
 # Create discourse user for build
@@ -68,9 +70,10 @@ RUN bundle config set --local deployment 'true' \
 # Install Node.js dependencies and precompile assets
 ENV NODE_ENV=production
 ENV RAILS_ENV=production
-RUN yarn install --production --frozen-lockfile \
+RUN corepack enable pnpm \
+    && pnpm install --prod --frozen-lockfile \
     && bundle exec rake assets:precompile \
-    && yarn cache clean
+    && pnpm store prune
 
 # Clean up build artifacts
 RUN rm -rf .git \
