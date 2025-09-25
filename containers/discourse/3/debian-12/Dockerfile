@@ -67,12 +67,11 @@ RUN bundle config set --local deployment 'true' \
     && bundle config set --local path 'vendor/bundle' \
     && bundle install --jobs $(nproc)
 
-# Install Node.js dependencies and precompile assets
+# Install Node.js dependencies (skip asset precompilation for now)
 ENV NODE_ENV=production
 ENV RAILS_ENV=production
 RUN corepack enable pnpm \
     && pnpm install --prod --frozen-lockfile \
-    && bundle exec rake assets:precompile \
     && pnpm store prune
 
 # Clean up build artifacts
@@ -238,6 +237,12 @@ if [ "${DISCOURSE_SKIP_MIGRATIONS:-false}" != "true" ]; then
     bundle exec rake db:migrate
 fi
 
+# Precompile assets if needed (when Redis and DB are available)
+if [ "${DISCOURSE_SKIP_ASSET_PRECOMPILATION:-false}" != "true" ]; then
+    echo "Precompiling assets..."
+    bundle exec rake assets:precompile
+fi
+
 # Create admin user if specified
 if [ -n "${DISCOURSE_ADMIN_EMAIL:-}" ] && [ -n "${DISCOURSE_ADMIN_PASSWORD:-}" ]; then
     echo "Creating admin user if not exists..."
@@ -334,6 +339,7 @@ ENV DISCOURSE_VERSION="${DISCOURSE_VERSION}" \
     # Feature flags
     DISCOURSE_ENABLE_CORS=false \
     DISCOURSE_SKIP_MIGRATIONS=false \
+    DISCOURSE_SKIP_ASSET_PRECOMPILATION=false \
     # Monitoring
     HEALTH_CHECK_TIMEOUT=10
 
