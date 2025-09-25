@@ -28,10 +28,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Setup Node.js repository and install
+# Setup Node.js repository and install Node.js + Yarn
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update && apt-get install -y nodejs \
+    && curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor -o /etc/apt/keyrings/yarn.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/yarn.gpg] https://dl.yarnpkg.com/debian stable main" | tee /etc/apt/sources.list.d/yarn.list \
+    && apt-get update && apt-get install -y nodejs yarn \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Ruby via rbenv (build stage only)
