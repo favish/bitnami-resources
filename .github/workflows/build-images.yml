@@ -69,6 +69,7 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
             type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Redis image
@@ -84,6 +85,9 @@ jobs:
           build-args: |
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
@@ -133,6 +137,7 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
             type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Discourse image
@@ -151,6 +156,9 @@ jobs:
           build-args: |
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
             MAKEFLAGS=-j8
           cache-from: type=gha
           cache-to: type=gha,mode=max

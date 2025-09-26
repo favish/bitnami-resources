@@ -39,13 +39,11 @@ jobs:
       - name: Generate build matrix
         id: generate
         run: |
-          # Create matrix for all containers
-          matrix='{
-            "include": [
-          '
+          # Initialize empty array for matrix entries
+          matrix_entries=()
           
           # Find all Dockerfiles and generate matrix entries
-          find containers -name "Dockerfile" -type f | while IFS= read -r dockerfile; do
+          while IFS= read -r dockerfile; do
             # Extract path components
             container_path=$(dirname "$dockerfile")
             container_name=$(echo "$container_path" | cut -d'/' -f2)
@@ -57,20 +55,28 @@ jobs:
                [ "${{ github.event_name }}" = "schedule" ] || \
                git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD | grep -q "^${container_path}"; then
               
-              matrix+='{
-                "container": "'${container_name}'",
-                "version": "'${version}'",
-                "variant": "'${variant}'",
-                "path": "'${container_path}'",
-                "dockerfile": "'${dockerfile}'",
-                "changed": true
-              },'
+              # Add entry to array
+              entry="{
+                \"container\": \"${container_name}\",
+                \"version\": \"${version}\",
+                \"variant\": \"${variant}\",
+                \"path\": \"${container_path}\",
+                \"dockerfile\": \"${dockerfile}\",
+                \"changed\": true
+              }"
+              matrix_entries+=("$entry")
             fi
-          done
+          done < <(find containers -name "Dockerfile" -type f)
           
-          # Remove trailing comma and close array
-          matrix=$(echo "$matrix" | sed '$ s/,$//')
-          matrix+=']}'
+          # Build final JSON matrix
+          if [ ${#matrix_entries[@]} -eq 0 ]; then
+            matrix='{"include": []}'
+          else
+            # Join array elements with commas
+            IFS=','
+            matrix_content="${matrix_entries[*]}"
+            matrix="{\"include\": [${matrix_content}]}"
+          fi
           
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
           echo "Generated matrix:"
