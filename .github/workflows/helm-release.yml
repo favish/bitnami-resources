@@ -159,6 +159,7 @@ jobs:
           done
 
       - name: Run chart-releaser
+        id: chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
         with:
           charts_dir: charts
@@ -168,6 +169,13 @@ jobs:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_GENERATE_RELEASE_NOTES: true
           CR_SKIP_EXISTING: true
+      
+      - name: Debug changed charts by chart-releaser
+        run: |
+          echo "Changed charts processed by chart-releaser:"
+          echo "${{ steps.chart-releaser.outputs.changed_charts }}" | jq -r '.[]' || echo "No charts were changed or released." 
+          echo "Latest chart versions:"
+          echo "${{ steps.chart-releaser.outputs.chart_version }}" | jq -r '.[]' || echo "No charts versions found." 
 
   notify:
     needs: [detect-changes, validate-charts, package-and-release]
