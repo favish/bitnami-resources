@@ -77,17 +77,12 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
-      - name: Helm Lint
+      - name: Add Helm Repositories
         run: |
-          echo "Linting chart: ${{ matrix.chart }}"
-          helm lint ${{ matrix.chart }}
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
 
-      - name: Helm Template Test
-        run: |
-          echo "Testing template generation for: ${{ matrix.chart }}"
-          helm template test-release ${{ matrix.chart }} --debug --dry-run > /dev/null
-
-      - name: Check Chart Dependencies
+      - name: Resolve Chart Dependencies
         run: |
           cd ${{ matrix.chart }}
           if [ -f Chart.lock ]; then
@@ -99,6 +94,16 @@ jobs:
           else
             echo "No dependencies found"
           fi
+
+      - name: Helm Lint
+        run: |
+          echo "Linting chart: ${{ matrix.chart }}"
+          helm lint ${{ matrix.chart }}
+
+      - name: Helm Template Test
+        run: |
+          echo "Testing template generation for: ${{ matrix.chart }}"
+          helm template test-release ${{ matrix.chart }} --debug --dry-run > /dev/null
 
   package-and-release:
     needs: [detect-changes, validate-charts]
