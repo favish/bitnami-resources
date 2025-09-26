@@ -74,6 +74,7 @@ RUN corepack enable pnpm \
     && pnpm install --prod --frozen-lockfile \
     && SKIP_DB_AND_REDIS=1 \
        PRECOMPILE_ONLY=1 \
+       SKIP_EMBER_CLI_COMPILE=0 \
        bundle exec rake assets:precompile \
     && pnpm store prune
 
