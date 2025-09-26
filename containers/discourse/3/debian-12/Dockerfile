@@ -67,15 +67,12 @@ RUN bundle config set --local deployment 'true' \
     && bundle config set --local path 'vendor/bundle' \
     && bundle install --jobs $(nproc)
 
-# Install Node.js dependencies and precompile assets with mock services
+# Install Node.js dependencies only 
+# NOTE: Asset precompilation moved to entrypoint to ensure Redis availability
 ENV NODE_ENV=production
 ENV RAILS_ENV=production
 RUN corepack enable pnpm \
     && pnpm install --prod --frozen-lockfile \
-    && SKIP_DB_AND_REDIS=1 \
-       PRECOMPILE_ONLY=1 \
-       SKIP_EMBER_CLI_COMPILE=1 \
-       bundle exec rake assets:precompile \
     && pnpm store prune
 
 # Clean up build artifacts
@@ -179,10 +176,12 @@ RUN mkdir -p \
     /opt/discourse/tmp/cache \
     /opt/discourse/public/uploads \
     /opt/discourse/public/backups \
+    /opt/discourse/public/assets \
     && chown -R discourse:discourse /opt/discourse \
     && chmod -R 755 /opt/discourse \
     && chmod -R 750 /opt/discourse/log \
-    && chmod -R 750 /opt/discourse/tmp
+    && chmod -R 750 /opt/discourse/tmp \
+    && chmod -R 755 /opt/discourse/public
 
 # Security: Remove setuid/setgid permissions
 RUN find / -xdev -type f -perm +6000 -exec chmod a-s {} \; 2>/dev/null || true
@@ -234,6 +233,23 @@ until bundle exec rails runner 'ActiveRecord::Base.connection.execute(\"SELECT 1
     sleep 2
 done
 "
+
+# Redis connectivity check
+echo "Checking Redis connectivity..."
+timeout 30 bash -c "
+until bundle exec rails runner 'Rails.cache.redis.ping' > /dev/null 2>&1; do
+    echo 'Waiting for Redis to be ready...'
+    sleep 2
+done
+"
+
+# Precompile assets if not already done or if forced
+if [ "${DISCOURSE_PRECOMPILE_ASSETS:-true}" = "true" ] || [ ! -d "public/assets" ] || [ -z "$(ls -A public/assets 2>/dev/null)" ]; then
+    echo "Precompiling assets..."
+    bundle exec rake assets:precompile
+else
+    echo "Assets already precompiled, skipping..."
+fi
 
 # Run database migrations if needed
 if [ "${DISCOURSE_SKIP_MIGRATIONS:-false}" != "true" ]; then
@@ -337,6 +353,7 @@ ENV DISCOURSE_VERSION="${DISCOURSE_VERSION}" \
     # Feature flags
     DISCOURSE_ENABLE_CORS=false \
     DISCOURSE_SKIP_MIGRATIONS=false \
+    DISCOURSE_PRECOMPILE_ASSETS=true \
     # Monitoring
     HEALTH_CHECK_TIMEOUT=10
 
@@ -353,7 +370,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 3000
 
 # Volume for persistent data
-VOLUME ["/opt/discourse/public/uploads", "/opt/discourse/public/backups", "/opt/discourse/log"]
+VOLUME ["/opt/discourse/public/uploads", "/opt/discourse/public/backups", "/opt/discourse/public/assets", "/opt/discourse/log"]
 
 # Production entrypoint
 ENTRYPOINT ["/usr/local/bin/discourse-entrypoint.sh"]
