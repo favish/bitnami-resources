@@ -142,37 +142,6 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
 
-      # - name: Prepare Charts for Release
-      #   run: |
-      #     # Create a backup and temporary charts directory excluding library charts
-      #     mkdir -p charts-backup
-      #     cp -r charts/* charts-backup/ 2>/dev/null || true
-          
-      #     # Remove library charts from the charts directory temporarily
-      #     for chart_dir in charts/*/; do
-      #       if [ -f "${chart_dir}Chart.yaml" ]; then
-      #         if grep -q "^type:\s*library" "${chart_dir}Chart.yaml"; then
-      #           echo "⚠️  Temporarily removing library chart from packaging: $chart_dir"
-      #           rm -rf "$chart_dir"
-      #           continue
-      #         fi
-              
-      #         echo "Preparing application chart: $chart_dir"
-      #         cd "$chart_dir"
-              
-      #         # Resolve dependencies
-      #         if [ -f Chart.lock ]; then
-      #           echo "Updating dependencies for: $chart_dir"
-      #           helm dependency update
-      #         elif grep -q "dependencies:" Chart.yaml; then
-      #           echo "Building dependencies for: $chart_dir"
-      #           helm dependency build
-      #         fi
-              
-      #         cd - > /dev/null
-      #       fi
-      #     done
-
       - name: Debug Charts Directory
         run: |
           echo "📁 Charts directory contents:"
@@ -194,104 +163,11 @@ jobs:
         with:
           charts_dir: charts
           config: .github/cr.yaml
+          packages_with_index: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_GENERATE_RELEASE_NOTES: true
           CR_SKIP_EXISTING: true
-
-      # - name: Restore Charts Directory
-      #   if: always()
-      #   run: |
-      #     # Restore original charts directory structure
-      #     if [ -d charts-backup ]; then
-      #       rm -rf charts
-      #       mv charts-backup charts
-      #       echo "✅ Charts directory restored"
-      #     fi
-
-      # - name: Setup Pages
-      #   uses: actions/configure-pages@v4
-
-      # - name: Build repository index
-      #   run: |
-      #     # Create a temporary directory for the site
-      #     mkdir -p public
-          
-      #     # Copy the chart repository index
-      #     if [ -f .cr-index/index.yaml ]; then
-      #       cp .cr-index/index.yaml public/
-      #     fi
-          
-      #     # Create a simple HTML page for the repository
-      #     cat > public/index.html << 'EOF'
-      #     <!DOCTYPE html>
-      #     <html>
-      #     <head>
-      #         <title>Favish Bitnami Helm Charts</title>
-      #         <meta charset="utf-8">
-      #         <meta name="viewport" content="width=device-width, initial-scale=1">
-      #         <style>
-      #             body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; }
-      #             .container { max-width: 800px; margin: 0 auto; }
-      #             .header { text-align: center; margin-bottom: 40px; }
-      #             .usage { background: #f6f8fa; padding: 20px; border-radius: 6px; margin: 20px 0; }
-      #             .charts { margin: 20px 0; }
-      #             .chart { border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 10px 0; }
-      #             code { background: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-      #             pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; }
-      #         </style>
-      #     </head>
-      #     <body>
-      #         <div class="container">
-      #             <div class="header">
-      #                 <h1>🚢 Favish Bitnami Helm Charts</h1>
-      #                 <p>Production-ready Helm charts for Bitnami applications</p>
-      #             </div>
-                  
-      #             <div class="usage">
-      #                 <h2>📦 Usage</h2>
-      #                 <p>Add this Helm repository to your local Helm client:</p>
-      #                 <pre><code>helm repo add favish-bitnami https://favish.github.io/bitnami-resources
-      #     helm repo update</code></pre>
-      #             </div>
-                  
-      #             <div class="charts">
-      #                 <h2>📋 Available Charts</h2>
-                      
-      #                 <div class="chart">
-      #                     <h3>🗣️ Discourse</h3>
-      #                     <p>A modern discussion platform with built-in moderation and spam protection.</p>
-      #                     <pre><code>helm install my-discourse favish-bitnami/discourse</code></pre>
-      #                 </div>
-                      
-      #                 <div class="chart">
-      #                     <h3>🔴 Redis</h3>
-      #                     <p>In-memory data structure store, used as a database, cache, and message broker.</p>
-      #                     <pre><code>helm install my-redis favish-bitnami/redis</code></pre>
-      #                 </div>
-      #             </div>
-                  
-      #             <div class="usage">
-      #                 <h2>🔗 Links</h2>
-      #                 <ul>
-      #                     <li><a href="https://github.com/favish/bitnami-resources">📁 Source Code</a></li>
-      #                     <li><a href="index.yaml">📄 Repository Index</a></li>
-      #                     <li><a href="https://github.com/favish/bitnami-resources/releases">🏷️ Chart Releases</a></li>
-      #                 </ul>
-      #             </div>
-      #         </div>
-      #     </body>
-      #     </html>
-      #     EOF
-
-      # - name: Upload artifact
-      #   uses: actions/upload-pages-artifact@v3
-      #   with:
-      #     path: ./public
-
-      # - name: Deploy to GitHub Pages
-      #   id: deployment
-      #   uses: actions/deploy-pages@v4
 
   notify:
     needs: [detect-changes, validate-charts, package-and-release]
