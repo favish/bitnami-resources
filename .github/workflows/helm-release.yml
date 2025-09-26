@@ -103,7 +103,16 @@ jobs:
       - name: Helm Template Test
         run: |
           echo "Testing template generation for: ${{ matrix.chart }}"
-          helm template test-release ${{ matrix.chart }} --debug --dry-run > /dev/null
+          
+          # Check if this is a library chart by looking for 'type: library' in Chart.yaml
+          if grep -q "^type:\s*library" ${{ matrix.chart }}/Chart.yaml; then
+            echo "⚠️  Skipping template test for library chart: ${{ matrix.chart }}"
+            echo "Library charts are not installable and don't generate Kubernetes resources"
+          else
+            echo "✅ Running template test for application chart: ${{ matrix.chart }}"
+            helm template test-release ${{ matrix.chart }} --debug --dry-run > /dev/null
+            echo "Template generation successful"
+          fi
 
   package-and-release:
     needs: [detect-changes, validate-charts]
