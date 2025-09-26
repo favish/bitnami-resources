@@ -1,0 +1,78 @@
+apiVersion: v1
+entries:
+  common:
+  - annotations:
+      licenses: Apache-2.0
+    apiVersion: v2
+    appVersion: 2.31.6
+    created: "2025-09-26T12:27:59.236411705Z"
+    description: A Library Helm Chart for grouping common logic between bitnami charts.
+      This chart is not deployable by itself.
+    digest: 57ab4ca264ac303f448143b1adabb07bbfdd15b805745941417bb0d4d8e2d852
+    home: https://bitnami.com
+    icon: https://dyltqmyl993wv.cloudfront.net/downloads/logos/bitnami-mark.png
+    keywords:
+    - common
+    - helper
+    - template
+    - function
+    - bitnami
+    maintainers:
+    - name: Broadcom, Inc. All Rights Reserved.
+      url: https://github.com/bitnami/charts
+    name: common
+    sources:
+    - https://github.com/bitnami/charts/tree/main/bitnami/common
+    type: library
+    urls:
+    - https://github.com/favish/bitnami-resources/releases/download/common-2.31.6/common-2.31.6.tgz
+    version: 2.31.6
+  discourse:
+  - annotations:
+      images: |
+        - name: discourse
+          image: docker.io/bitnami/discourse:3.5.0-debian-12-r0
+        - name: os-shell
+          image: docker.io/bitnami/os-shell:12-debian-12-r51
+      licenses: Apache-2.0
+      tanzuCategory: application
+    apiVersion: v2
+    appVersion: 3.5.0
+    created: "2025-09-26T12:27:59.442475649Z"
+    dependencies:
+    - condition: redis.enabled
+      name: redis
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 22.X.X
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 16.X.X
+    - name: common
+      repository: oci://registry-1.docker.io/bitnamicharts
+      tags:
+      - bitnami-common
+      version: 2.x.x
+    description: Discourse is an open source discussion platform with built-in moderation
+      and governance systems that let discussion communities protect themselves from
+      bad actors even without official moderators.
+    digest: 42921b7c152be90da51784beb9497aa1ebdf063d9486a7dc5260ee4baed25ed7
+    home: https://bitnami.com
+    icon: https://dyltqmyl993wv.cloudfront.net/assets/stacks/discourse/img/discourse-stack-220x234.png
+    keywords:
+    - community
+    - forum
+    maintainers:
+    - name: Broadcom, Inc. All Rights Reserved.
+      url: https://github.com/bitnami/charts
+    - email: username.taken@gmail.com
+      name: paulczar
+    - email: preteluca@gmail.com
+      name: lucaprete
+    name: discourse
+    sources:
+    - https://github.com/bitnami/charts/tree/main/bitnami/discourse
+    urls:
+    - https://github.com/favish/bitnami-resources/releases/download/discourse-17.0.2/discourse-17.0.2.tgz
+    version: 17.0.2
+generated: "2025-09-26T12:27:59.442498181Z"
