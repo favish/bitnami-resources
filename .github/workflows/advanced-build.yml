@@ -55,15 +55,8 @@ jobs:
                [ "${{ github.event_name }}" = "schedule" ] || \
                git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD | grep -q "^${container_path}"; then
               
-              # Add entry to array
-              entry="{
-                \"container\": \"${container_name}\",
-                \"version\": \"${version}\",
-                \"variant\": \"${variant}\",
-                \"path\": \"${container_path}\",
-                \"dockerfile\": \"${dockerfile}\",
-                \"changed\": true
-              }"
+              # Add entry to array (single line JSON to avoid newline issues)
+              entry="{\"container\":\"${container_name}\",\"version\":\"${version}\",\"variant\":\"${variant}\",\"path\":\"${container_path}\",\"dockerfile\":\"${dockerfile}\",\"changed\":true}"
               matrix_entries+=("$entry")
             fi
           done < <(find containers -name "Dockerfile" -type f)
@@ -110,6 +103,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate Build Info
+        id: build-info
+        run: |
+          BUILD_NUMBER="${{ github.run_number }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BUILD_ID="pr-${{ github.event.number }}-${BUILD_NUMBER}"
+          else
+            BUILD_ID="${{ github.ref_name }}-${BUILD_NUMBER}"
+          fi
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "Build Number: ${BUILD_NUMBER}"
+          echo "Build ID: ${BUILD_ID}"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -121,44 +128,45 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
             type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=${{ steps.build-info.outputs.build_id }}
             type=raw,value=latest,enable={{is_default_branch}}
             type=schedule,pattern=weekly-{{date 'YYYYMMDD'}}
-          labels: |
-            org.opencontainers.image.title=${{ matrix.container }}
-            org.opencontainers.image.description=Bitnami ${{ matrix.container }} ${{ matrix.version }} (${{ matrix.variant }})
-            org.opencontainers.image.vendor=Favish
-            com.favish.bitnami.container=${{ matrix.container }}
-            com.favish.bitnami.version=${{ matrix.version }}
-            com.favish.bitnami.variant=${{ matrix.variant }}
 
-      - name: Build and push image
+      - name: Build Docker Image
         uses: docker/build-push-action@v5
+        timeout-minutes: ${{ matrix.container == 'discourse' && 60 || 30 }}
         with:
-          context: ${{ matrix.path }}
+          context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ matrix.platforms }}
           build-args: |
-            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
-            VCS_REF=${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.container }}-${{ matrix.version }}-${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.container }}-${{ matrix.version }}-${{ matrix.variant }}
-          platforms: ${{ github.event.inputs.build_platforms || 'linux/amd64,linux/arm64' }}
+            BUILD_NUMBER=${{ steps.build-info.outputs.build_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        timeout-minutes: ${{ matrix.container == 'discourse' && 30 || 15 }}
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.container }}:${{ matrix.version }}-${{ matrix.variant }}-${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.container }}:${{ steps.build-info.outputs.build_id }}
           format: 'sarif'
-          output: 'trivy-results-${{ matrix.container }}-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          output: 'trivy-results-${{ matrix.container }}-${{ steps.build-info.outputs.build_id }}.sarif'
+          timeout: ${{ matrix.container == 'discourse' && '30m' || '15m' }}
+          skip-dirs: ${{ matrix.container == 'discourse' && '/opt/discourse/node_modules,/opt/discourse/vendor/bundle' || '' }}
+          skip-files: "*.bin,*.so,*.dylib"
         continue-on-error: true
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: 'trivy-results-${{ matrix.container }}-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          sarif_file: 'trivy-results-${{ matrix.container }}-${{ steps.build-info.outputs.build_id }}.sarif'
         continue-on-error: true
 
   notify:
