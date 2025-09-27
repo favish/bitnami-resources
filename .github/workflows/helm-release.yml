@@ -173,9 +173,9 @@ jobs:
       - name: Debug changed charts by chart-releaser
         run: |
           echo "Changed charts processed by chart-releaser:"
-          echo "${{ steps.chart-releaser.outputs.changed_charts }}" | jq -r '.[]' || echo "No charts were changed or released." 
+          echo "${{ steps.chart-releaser.outputs.changed_charts }}"
           echo "Latest chart versions:"
-          echo "${{ steps.chart-releaser.outputs.chart_version }}" | jq -r '.[]' || echo "No charts versions found." 
+          echo "${{ steps.chart-releaser.outputs.chart_version }}"
 
   notify:
     needs: [detect-changes, validate-charts, package-and-release]
