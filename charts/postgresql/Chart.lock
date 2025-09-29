@@ -1,0 +1,6 @@
+dependencies:
+- name: common
+  repository: https://favish.github.io/bitnami-resources
+  version: 2.31.6
+digest: sha256:d19f188de044534910e979ef419ef00c63531c3ae960c83e830c0f2e7498d48c
+generated: "2025-09-28T11:43:40.228597+07:00"

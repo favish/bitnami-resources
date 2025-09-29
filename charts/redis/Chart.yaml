@@ -19,15 +19,12 @@ apiVersion: v2
 appVersion: 8.2.1
 dependencies:
 - name: common
-  repository: oci://registry-1.docker.io/bitnamicharts
-  tags:
-  - bitnami-common
+  repository: https://favish.github.io/bitnami-resources
   version: 2.x.x
 description: Redis(R) is an open source, advanced key-value store. It is often referred
   to as a data structure server since keys can contain strings, hashes, lists, sets
   and sorted sets.
-home: https://bitnami.com
-icon: https://dyltqmyl993wv.cloudfront.net/assets/stacks/redis/img/redis-stack-220x234.png
+home: https://favish.com
 keywords:
 - redis
 - keyvalue
