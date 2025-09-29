@@ -204,12 +204,12 @@ cleanup() {
 # Set up signal handlers
 trap cleanup TERM INT QUIT
 
-# Environment validation
+# Environment validation - align with Bitnami Helm chart
 required_vars=(
-    "DISCOURSE_HOSTNAME"
-    "DISCOURSE_DB_HOST"
-    "DISCOURSE_DB_NAME"
-    "DISCOURSE_DB_USERNAME"
+    "DISCOURSE_HOST"
+    "DISCOURSE_DATABASE_HOST"
+    "DISCOURSE_DATABASE_NAME"
+    "DISCOURSE_DATABASE_USER"
 )
 
 for var in "${required_vars[@]}"; do
@@ -282,7 +282,7 @@ echo "Starting Discourse..."
 # Start Discourse with proper signal handling
 bundle exec rails server \
     -b 0.0.0.0 \
-    -p "${DISCOURSE_PORT:-3000}" \
+    -p "${DISCOURSE_PORT_NUMBER:-3000}" \
     -e production &
 
 DISCOURSE_PID=$!
@@ -299,7 +299,7 @@ COPY <<'EOF' /usr/local/bin/health-check.sh
 #!/bin/bash
 set -euo pipefail
 
-PORT="${DISCOURSE_PORT:-3000}"
+PORT="${DISCOURSE_PORT_NUMBER:-3000}"
 TIMEOUT="${HEALTH_CHECK_TIMEOUT:-10}"
 
 # Check if the application is responding
@@ -319,7 +319,7 @@ ENV DISCOURSE_VERSION="${DISCOURSE_VERSION}" \
     NODE_ENV=production \
     PATH="/opt/rbenv/bin:/opt/rbenv/shims:$PATH" \
     # Discourse configuration
-    DISCOURSE_PORT=3000 \
+    DISCOURSE_PORT_NUMBER=3000 \
     DISCOURSE_RELATIVE_URL_ROOT="" \
     DISCOURSE_FORCE_HTTPS=false \
     DISCOURSE_CDN_URL="" \

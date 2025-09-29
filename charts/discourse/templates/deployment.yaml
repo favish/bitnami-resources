@@ -77,8 +77,8 @@ spec:
             - sh
             - -c
             - |
-              mkdir -p /bitnami/discourse
-              find /bitnami/discourse -mindepth 1 -maxdepth 1 -not -name ".snapshot" -not -name "lost+found" | xargs chown -R {{ .Values.discourse.containerSecurityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }}
+              mkdir -p /opt/discourse/public/uploads /opt/discourse/public/backups /opt/discourse/log
+              chown -R {{ .Values.discourse.containerSecurityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /opt/discourse/public /opt/discourse/log
           {{- if .Values.volumePermissions.containerSecurityContext.enabled }}
           securityContext: {{- include "common.compatibility.renderSecurityContext" (dict "secContext" .Values.volumePermissions.containerSecurityContext "context" $) | nindent 12 }}
           {{- end }}
@@ -89,7 +89,7 @@ spec:
           {{- end }}
           volumeMounts:
             - name: discourse-data
-              mountPath: /bitnami/discourse
+              mountPath: /opt/discourse
         {{- end }}
         {{- if .Values.discourse.plugins }}
         - name: install-plugins
@@ -103,7 +103,7 @@ spec:
           args:
             - -c
             - |
-              pushd "/opt/bitnami/discourse" >/dev/null || exit 1
+              pushd "/opt/discourse" >/dev/null || exit 1
               {{- range $plugin := .Values.discourse.plugins }}
               RAILS_ENV=production bundle exec rake plugin:install repo={{ $plugin }}
               {{- end }}
@@ -114,7 +114,7 @@ spec:
               RAILS_ENV=production LOAD_PLUGINS=0 bundle exec rake plugin:pull_compatible_all
               {{- end }}
               popd >/dev/null || exit 1
-              cp -nr --preserve=mode /opt/bitnami/discourse/plugins/* /plugins
+              cp -nr --preserve=mode /opt/discourse/plugins/* /plugins
           {{- if .Values.discourse.extraEnvVars }}
           env:
             {{- include "common.tplvalues.render" (dict "value" .Values.discourse.extraEnvVars "context" $) | nindent 12 }}
@@ -163,8 +163,8 @@ spec:
           args:
             - -ec
             - |
-              cp -nr --preserve=mode /plugins/* /opt/bitnami/discourse/plugins
-              /opt/bitnami/scripts/discourse/entrypoint.sh /opt/bitnami/scripts/discourse/run.sh
+              cp -nr --preserve=mode /plugins/* /opt/discourse/plugins
+              /usr/local/bin/discourse-entrypoint.sh
           {{- end }}
           env:
             - name: BITNAMI_DEBUG
@@ -278,12 +278,15 @@ spec:
           {{- end }}
           volumeMounts:
             - name: discourse-data
-              mountPath: /bitnami/discourse
-              subPath: discourse
+              mountPath: /opt/discourse/public
+              subPath: public
+            - name: discourse-data
+              mountPath: /opt/discourse/log
+              subPath: log
             {{- if .Values.discourse.plugins }}
             - name: empty-dir
               subPath: app-plugins-dir
-              mountPath: {{ ternary "/plugins" "/opt/bitnami/discourse/plugins" .Values.discourse.persistPlugins }}
+              mountPath: {{ ternary "/plugins" "/opt/discourse/plugins" .Values.discourse.persistPlugins }}
             {{- end }}
             {{- if .Values.discourse.extraVolumeMounts }}
             {{- include "common.tplvalues.render" (dict "value" .Values.discourse.extraVolumeMounts "context" $) | nindent 12 }}
@@ -392,11 +395,14 @@ spec:
           {{- end }}
           volumeMounts:
             - name: discourse-data
-              mountPath: /bitnami/discourse
-              subPath: discourse
+              mountPath: /opt/discourse/public
+              subPath: public
+            - name: discourse-data
+              mountPath: /opt/discourse/log
+              subPath: log
             {{- if and .Values.discourse.plugins (not .Values.discourse.persistPlugins) }}
             - name: empty-dir
-              mountPath: /opt/bitnami/discourse/plugins
+              mountPath: /opt/discourse/plugins
               subPath: app-plugins-dir
             {{- end }}
             {{- if .Values.sidekiq.extraVolumeMounts }}
