@@ -17,6 +17,7 @@ jobs:
     outputs:
       redis: ${{ steps.changes.outputs.redis }}
       discourse: ${{ steps.changes.outputs.discourse }}
+      os_shell: ${{ steps.changes.outputs.os_shell }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,6 +33,8 @@ jobs:
               - 'containers/redis/**'
             discourse:
               - 'containers/discourse/**'
+            os_shell:
+              - 'containers/os-shell/**'
 
   build-redis:
     needs: detect-changes
@@ -164,6 +167,65 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
+  build-os-shell:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.os_shell == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['12']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push OS Shell image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/os-shell/${{ matrix.version }}/${{ matrix.variant }}
+          file: containers/os-shell/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
   scan-redis:
     needs: build-redis
     if: needs.build-redis.result == 'success'
@@ -235,3 +297,38 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results-discourse-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+
+  scan-os-shell:
+    needs: build-os-shell
+    if: needs.build-os-shell.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      matrix:
+        version: ['12']
+        variant: ['debian-12']
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner for OS Shell
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell:${{ matrix.version }}-${{ matrix.variant }}
+          format: 'sarif'
+          output: 'trivy-results-os-shell-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          timeout: '10m'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-os-shell-${{ matrix.version }}-${{ matrix.variant }}.sarif'
