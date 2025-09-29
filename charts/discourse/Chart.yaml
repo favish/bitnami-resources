@@ -18,7 +18,7 @@ dependencies:
   version: 22.X.X
 - condition: postgresql.enabled
   name: postgresql
-  repository: https://favish.github.io/bitnami-resources
+  repository: oci://registry-1.docker.io/bitnamicharts
   version: 16.X.X
 - name: common
   repository: https://favish.github.io/bitnami-resources
