@@ -47,7 +47,9 @@ RUN chmod g+rwX /opt
 RUN find / -perm /6000 -type f -exec chmod a-s {} \; || true
 
 ENV APP_VERSION="${ELASTICSEARCH_EXPORTER_VERSION}" \
-    IMAGE_REVISION="1"
+    BITNAMI_APP_NAME="elasticsearch-exporter" \
+    IMAGE_REVISION="1" \ 
+    PATH="/opt/elasticsearch-exporter/bin:$PATH"
 
 EXPOSE 9114
 

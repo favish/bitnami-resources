@@ -77,6 +77,7 @@ RUN chmod +x /opt/bitnami/scripts/elasticsearch/*.sh /opt/bitnami/scripts/java/*
     mkdir -p /opt/bitnami/elasticsearch/data /opt/bitnami/elasticsearch/logs /opt/bitnami/elasticsearch/config && \
     chown -R 1001:1001 /opt/bitnami/elasticsearch
 ENV APP_VERSION="${ELASTICSEARCH_VERSION}" \
+    BITNAMI_APP_NAME="elasticsearch" \
     ES_JAVA_HOME="/opt/bitnami/java" \
     IMAGE_REVISION="0" \
     JAVA_HOME="/opt/bitnami/java" \
