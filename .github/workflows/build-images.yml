@@ -18,6 +18,8 @@ jobs:
       redis: ${{ steps.changes.outputs.redis }}
       discourse: ${{ steps.changes.outputs.discourse }}
       os_shell: ${{ steps.changes.outputs.os_shell }}
+      elasticsearch: ${{ steps.changes.outputs.elasticsearch }}
+      elasticsearch_exporter: ${{ steps.changes.outputs.elasticsearch_exporter }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,6 +37,10 @@ jobs:
               - 'containers/discourse/**'
             os_shell:
               - 'containers/os-shell/**'
+            elasticsearch:
+              - 'containers/elasticsearch/**'
+            elasticsearch_exporter:
+              - 'containers/elasticsearch-exporter/**'
 
   build-redis:
     needs: detect-changes
@@ -163,6 +169,131 @@ jobs:
             BUILD_ID=${{ github.run_id }}
             GITHUB_REF=${{ github.ref_name }}
             MAKEFLAGS=-j8
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  build-elasticsearch:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.elasticsearch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['9.1']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+            image=moby/buildkit:latest
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 2
+            [worker.containerd]
+              max-parallelism = 2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Elasticsearch image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/elasticsearch/${{ matrix.version }}/${{ matrix.variant }}
+          file: containers/elasticsearch/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  build-elasticsearch-exporter:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.elasticsearch_exporter == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['1']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch-exporter
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Elasticsearch Exporter image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/elasticsearch-exporter/${{ matrix.version }}/${{ matrix.variant }}
+          file: containers/elasticsearch-exporter/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
@@ -332,3 +463,75 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results-os-shell-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+
+  scan-elasticsearch:
+    needs: build-elasticsearch
+    if: needs.build-elasticsearch.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      matrix:
+        version: ['9.1']
+        variant: ['debian-12']
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner for Elasticsearch
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch:${{ matrix.version }}-${{ matrix.variant }}
+          format: 'sarif'
+          output: 'trivy-results-elasticsearch-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          timeout: '15m'
+          skip-dirs: '/opt/elasticsearch/jdk,/opt/elasticsearch/modules'
+          skip-files: '*.jar,*.so,*.dylib'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-elasticsearch-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+
+  scan-elasticsearch-exporter:
+    needs: build-elasticsearch-exporter
+    if: needs.build-elasticsearch-exporter.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      matrix:
+        version: ['1']
+        variant: ['debian-12']
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner for Elasticsearch Exporter
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch-exporter:${{ matrix.version }}-${{ matrix.variant }}
+          format: 'sarif'
+          output: 'trivy-results-elasticsearch-exporter-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          timeout: '10m'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-elasticsearch-exporter-${{ matrix.version }}-${{ matrix.variant }}.sarif'
