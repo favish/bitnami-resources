@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Add security-events permission at workflow level
+permissions:
+  contents: read
+  security-events: write
+
 env:
   REGISTRY: ghcr.io
   OWNER: ${{ github.repository_owner }}
@@ -359,7 +364,7 @@ jobs:
 
   scan-redis:
     needs: build-redis
-    if: needs.build-redis.result == 'success'
+    if: needs.build-redis.result == 'success' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -388,13 +393,20 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         with:
           sarif_file: 'trivy-results-redis-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          
+      - name: Display scan results for PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo "📊 Security scan completed for Redis"
+          echo "⚠️  Security results upload skipped for pull request"
+          echo "Results will be uploaded when merged to main branch"
 
   scan-discourse:
     needs: build-discourse
-    if: needs.build-discourse.result == 'success'
+    if: needs.build-discourse.result == 'success' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -424,14 +436,21 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && github.event_name != 'pull_request'
         with:
           sarif_file: 'trivy-results-discourse-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          
+      - name: Display scan results for PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo "📊 Security scan completed for Discourse"
+          echo "⚠️  Security results upload skipped for pull request"
+          echo "Results will be uploaded when merged to main branch"
 
   scan-os-shell:
     needs: build-os-shell
-    if: needs.build-os-shell.result == 'success'
+    if: needs.build-os-shell.result == 'success' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -460,13 +479,20 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         with:
           sarif_file: 'trivy-results-os-shell-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          
+      - name: Display scan results for PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo "📊 Security scan completed for OS Shell"
+          echo "⚠️  Security results upload skipped for pull request"
+          echo "Results will be uploaded when merged to main branch"
 
   scan-elasticsearch:
     needs: build-elasticsearch
-    if: needs.build-elasticsearch.result == 'success'
+    if: needs.build-elasticsearch.result == 'success' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -497,13 +523,20 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         with:
           sarif_file: 'trivy-results-elasticsearch-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          
+      - name: Display scan results for PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo "📊 Security scan completed for Elasticsearch"
+          echo "⚠️  Security results upload skipped for pull request"
+          echo "Results will be uploaded when merged to main branch"
 
   scan-elasticsearch-exporter:
     needs: build-elasticsearch-exporter
-    if: needs.build-elasticsearch-exporter.result == 'success'
+    if: needs.build-elasticsearch-exporter.result == 'success' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -532,6 +565,13 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         with:
           sarif_file: 'trivy-results-elasticsearch-exporter-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          
+      - name: Display scan results for PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo "📊 Security scan completed for Elasticsearch Exporter"
+          echo "⚠️  Security results upload skipped for pull request"
+          echo "Results will be uploaded when merged to main branch"
