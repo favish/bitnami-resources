@@ -10,7 +10,6 @@ on:
 # Add security-events permission at workflow level
 permissions:
   contents: read
-  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -25,6 +24,7 @@ jobs:
       os_shell: ${{ steps.changes.outputs.os_shell }}
       elasticsearch: ${{ steps.changes.outputs.elasticsearch }}
       elasticsearch_exporter: ${{ steps.changes.outputs.elasticsearch_exporter }}
+      kibana: ${{ steps.changes.outputs.kibana }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,6 +46,75 @@ jobs:
               - 'containers/elasticsearch/**'
             elasticsearch_exporter:
               - 'containers/elasticsearch-exporter/**'
+            kibana:
+              - 'containers/kibana/**'
+
+  build-kibana:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.kibana == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['9.1']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+            image=moby/buildkit:latest
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 2
+            [worker.containerd]
+              max-parallelism = 2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/kibana
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Kibana image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/kibana/${{ matrix.version }}/${{ matrix.variant }}
+          file: containers/kibana/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
   build-redis:
     needs: detect-changes
@@ -364,12 +433,11 @@ jobs:
 
   scan-redis:
     needs: build-redis
-    if: needs.build-redis.result == 'success' && github.event_name != 'pull_request'
+    if: needs.build-redis.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
-      security-events: write
     strategy:
       matrix:
         version: ['8.2']
@@ -386,32 +454,26 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/redis:${{ matrix.version }}-${{ matrix.variant }}
-          format: 'sarif'
-          output: 'trivy-results-redis-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           timeout: '10m'
         continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.event_name != 'pull_request'
-        with:
-          sarif_file: 'trivy-results-redis-${{ matrix.version }}-${{ matrix.variant }}.sarif'
-          
-      - name: Display scan results for PR
-        if: always() && github.event_name == 'pull_request'
+      - name: Trivy summary (Redis)
+        if: always()
         run: |
-          echo "📊 Security scan completed for Redis"
-          echo "⚠️  Security results upload skipped for pull request"
-          echo "Results will be uploaded when merged to main branch"
+          echo "=== Redis Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/redis:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
 
   scan-discourse:
     needs: build-discourse
-    if: needs.build-discourse.result == 'success' && github.event_name != 'pull_request'
+    if: needs.build-discourse.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
-      security-events: write
     strategy:
       matrix:
         version: ['3']
@@ -428,34 +490,28 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/discourse:${{ matrix.version }}-${{ matrix.variant }}
-          format: 'sarif'
-          output: 'trivy-results-discourse-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           timeout: '15m'
           skip-dirs: '/opt/discourse/node_modules,/opt/discourse/vendor/bundle'
           skip-files: '*.bin,*.so,*.dylib'
         continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.event_name != 'pull_request'
-        with:
-          sarif_file: 'trivy-results-discourse-${{ matrix.version }}-${{ matrix.variant }}.sarif'
-          
-      - name: Display scan results for PR
-        if: always() && github.event_name == 'pull_request'
+      - name: Trivy summary (Discourse)
+        if: always()
         run: |
-          echo "📊 Security scan completed for Discourse"
-          echo "⚠️  Security results upload skipped for pull request"
-          echo "Results will be uploaded when merged to main branch"
+          echo "=== Discourse Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/discourse:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
 
   scan-os-shell:
     needs: build-os-shell
-    if: needs.build-os-shell.result == 'success' && github.event_name != 'pull_request'
+    if: needs.build-os-shell.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
-      security-events: write
     strategy:
       matrix:
         version: ['12']
@@ -472,32 +528,26 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell:${{ matrix.version }}-${{ matrix.variant }}
-          format: 'sarif'
-          output: 'trivy-results-os-shell-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           timeout: '10m'
         continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.event_name != 'pull_request'
-        with:
-          sarif_file: 'trivy-results-os-shell-${{ matrix.version }}-${{ matrix.variant }}.sarif'
-          
-      - name: Display scan results for PR
-        if: always() && github.event_name == 'pull_request'
+      - name: Trivy summary (OS Shell)
+        if: always()
         run: |
-          echo "📊 Security scan completed for OS Shell"
-          echo "⚠️  Security results upload skipped for pull request"
-          echo "Results will be uploaded when merged to main branch"
+          echo "=== OS Shell Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
 
   scan-elasticsearch:
     needs: build-elasticsearch
-    if: needs.build-elasticsearch.result == 'success' && github.event_name != 'pull_request'
+    if: needs.build-elasticsearch.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
-      security-events: write
     strategy:
       matrix:
         version: ['9.1']
@@ -514,34 +564,28 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch:${{ matrix.version }}-${{ matrix.variant }}
-          format: 'sarif'
-          output: 'trivy-results-elasticsearch-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           timeout: '15m'
           skip-dirs: '/opt/elasticsearch/jdk,/opt/elasticsearch/modules'
           skip-files: '*.jar,*.so,*.dylib'
         continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.event_name != 'pull_request'
-        with:
-          sarif_file: 'trivy-results-elasticsearch-${{ matrix.version }}-${{ matrix.variant }}.sarif'
-          
-      - name: Display scan results for PR
-        if: always() && github.event_name == 'pull_request'
+      - name: Trivy summary (Elasticsearch)
+        if: always()
         run: |
-          echo "📊 Security scan completed for Elasticsearch"
-          echo "⚠️  Security results upload skipped for pull request"
-          echo "Results will be uploaded when merged to main branch"
+          echo "=== Elasticsearch Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
 
   scan-elasticsearch-exporter:
     needs: build-elasticsearch-exporter
-    if: needs.build-elasticsearch-exporter.result == 'success' && github.event_name != 'pull_request'
+    if: needs.build-elasticsearch-exporter.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
-      security-events: write
     strategy:
       matrix:
         version: ['1']
@@ -558,20 +602,53 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch-exporter:${{ matrix.version }}-${{ matrix.variant }}
-          format: 'sarif'
-          output: 'trivy-results-elasticsearch-exporter-${{ matrix.version }}-${{ matrix.variant }}.sarif'
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           timeout: '10m'
         continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.event_name != 'pull_request'
-        with:
-          sarif_file: 'trivy-results-elasticsearch-exporter-${{ matrix.version }}-${{ matrix.variant }}.sarif'
-          
-      - name: Display scan results for PR
-        if: always() && github.event_name == 'pull_request'
+      - name: Trivy summary (Elasticsearch Exporter)
+        if: always()
         run: |
-          echo "📊 Security scan completed for Elasticsearch Exporter"
-          echo "⚠️  Security results upload skipped for pull request"
-          echo "Results will be uploaded when merged to main branch"
+          echo "=== Elasticsearch Exporter Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/elasticsearch-exporter:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
+
+  scan-kibana:
+    needs: build-kibana
+    if: needs.build-kibana.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      matrix:
+        version: ['9.1']
+        variant: ['debian-12']
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner for Kibana
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/kibana:${{ matrix.version }}-${{ matrix.variant }}
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          timeout: '15m'
+          skip-dirs: '/opt/bitnami/kibana/node,/opt/bitnami/kibana/plugins'
+          skip-files: '*.so,*.dylib'
+        continue-on-error: true
+
+      - name: Trivy summary (Kibana)
+        if: always()
+        run: |
+          echo "=== Kibana Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/kibana:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
