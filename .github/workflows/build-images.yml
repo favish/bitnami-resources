@@ -145,7 +145,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/redis
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -401,7 +401,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-os-shell
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -453,7 +453,7 @@ jobs:
       - name: Run Trivy vulnerability scanner for Redis
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/redis:${{ matrix.version }}-${{ matrix.variant }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis:${{ matrix.version }}-${{ matrix.variant }}
           format: 'table'
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
@@ -527,7 +527,7 @@ jobs:
       - name: Run Trivy vulnerability scanner for OS Shell
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell:${{ matrix.version }}-${{ matrix.variant }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-os-shell:${{ matrix.version }}-${{ matrix.variant }}
           format: 'table'
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
