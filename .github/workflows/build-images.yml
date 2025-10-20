@@ -76,18 +76,18 @@ jobs:
             [worker.containerd]
               max-parallelism = 2
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/kibana
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-kibana
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -134,12 +134,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -202,12 +202,12 @@ jobs:
             [worker.containerd]
               max-parallelism = 2
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -274,12 +274,12 @@ jobs:
             [worker.containerd]
               max-parallelism = 2
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -332,12 +332,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -390,12 +390,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -443,12 +443,12 @@ jobs:
         version: ['8.2']
         variant: ['debian-12']
     steps:
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner for Redis
         uses: aquasecurity/trivy-action@master
@@ -464,7 +464,7 @@ jobs:
         if: always()
         run: |
           echo "=== Redis Vulnerability Scan Complete ==="
-          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/redis:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis:${{ matrix.version }}-${{ matrix.variant }}"
           echo "Above table shows detected vulnerabilities (if any)."
 
   scan-discourse:
@@ -479,12 +479,12 @@ jobs:
         version: ['3']
         variant: ['debian-12']
     steps:
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner for Discourse
         uses: aquasecurity/trivy-action@master
@@ -502,7 +502,7 @@ jobs:
         if: always()
         run: |
           echo "=== Discourse Vulnerability Scan Complete ==="
-          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/discourse:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-discourse:${{ matrix.version }}-${{ matrix.variant }}"
           echo "Above table shows detected vulnerabilities (if any)."
 
   scan-os-shell:
@@ -517,12 +517,12 @@ jobs:
         version: ['12']
         variant: ['debian-12']
     steps:
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner for OS Shell
         uses: aquasecurity/trivy-action@master
@@ -538,7 +538,7 @@ jobs:
         if: always()
         run: |
           echo "=== OS Shell Vulnerability Scan Complete ==="
-          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/os-shell:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-os-shell:${{ matrix.version }}-${{ matrix.variant }}"
           echo "Above table shows detected vulnerabilities (if any)."
 
   scan-elasticsearch:
@@ -553,12 +553,12 @@ jobs:
         version: ['9.1']
         variant: ['debian-12']
     steps:
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner for Elasticsearch
         uses: aquasecurity/trivy-action@master
@@ -591,12 +591,12 @@ jobs:
         version: ['1']
         variant: ['debian-12']
     steps:
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner for Elasticsearch Exporter
         uses: aquasecurity/trivy-action@master
@@ -627,17 +627,17 @@ jobs:
         version: ['9.1']
         variant: ['debian-12']
     steps:
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner for Kibana
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/kibana:${{ matrix.version }}-${{ matrix.variant }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-kibana:${{ matrix.version }}-${{ matrix.variant }}
           format: 'table'
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
@@ -650,5 +650,5 @@ jobs:
         if: always()
         run: |
           echo "=== Kibana Vulnerability Scan Complete ==="
-          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/kibana:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-kibana:${{ matrix.version }}-${{ matrix.variant }}"
           echo "Above table shows detected vulnerabilities (if any)."

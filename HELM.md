@@ -97,7 +97,7 @@ charts/
 - 📁 **Source Code**: [GitHub Repository](https://github.com/favish/bitnami-resources)
 - 🏷️ **Releases**: [Chart Releases](https://github.com/favish/bitnami-resources/releases)  
 - 📄 **Repository Index**: [index.yaml](https://favish.github.io/bitnami-resources/index.yaml)
-- 🐳 **Docker Images**: [GitHub Container Registry](https://github.com/orgs/favish/packages)
+- 🐳 **Docker Images**: [Docker Hub](https://hub.docker.com/u/favish)
 
 ## Support
 

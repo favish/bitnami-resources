@@ -16,7 +16,7 @@ This repository contains automated workflows to build Docker images for Bitnami 
 - Builds only affected images
 - Supports multi-architecture builds (amd64, arm64)
 - Includes security scanning with Trivy
-- Publishes to GitHub Container Registry (ghcr.io)
+- Publishes to Docker Hub (docker.io)
 
 **Path Detection:**
 - `containers/redis/**` → Builds Redis images
@@ -72,11 +72,11 @@ Built images are tagged with:
 
 ### Registry
 
-Images are published to: `ghcr.io/{owner}/{container-name}`
+Images are published to: `docker.io/{owner}/{container-name}`
 
 Examples:
-- `ghcr.io/favish/redis:8.2-debian-12`
-- `ghcr.io/favish/discourse:3-debian-12`
+- `docker.io/favish/bitnami-redis:8.2-debian-12`
+- `docker.io/favish/bitnami-discourse:3-debian-12`
 
 ## Security
 
@@ -99,7 +99,7 @@ To add a new container:
 
 Set these in your GitHub repository settings:
 
-- Repository secrets are automatically used for GitHub Container Registry
+- Repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are used for Docker Hub authentication
 - No additional configuration needed for basic usage
 
 ### Customization
