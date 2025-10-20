@@ -4,7 +4,7 @@
 # Build stage
 FROM debian:bookworm-slim AS builder
 
-ARG REDIS_VERSION=8.2.2
+ARG REDIS_VERSION=7.4.6
 ARG REDIS_DOWNLOAD_URL=http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz
 ARG BUILD_DATE
 ARG VCS_REF
@@ -56,7 +56,7 @@ RUN groupadd -r -g 999 redis \
 # Production stage
 FROM debian:bookworm-slim AS prod
 
-ARG REDIS_VERSION=8.2.2
+ARG REDIS_VERSION=7.4.1
 ARG BUILD_DATE
 ARG VCS_REF
 
