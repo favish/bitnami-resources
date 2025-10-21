@@ -113,8 +113,8 @@ diagnosticMode:
 ##
 image:
   registry: docker.io
-  repository: bitnamilegacy/redis
-  tag: 8.2.1-debian-12-r0
+  repository: favish/bitnami-redis
+  tag: 8.2-debian-12
   digest: ""
   ## Specify a imagePullPolicy
   ## ref: https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
@@ -1185,8 +1185,8 @@ sentinel:
   ##
   image:
     registry: docker.io
-    repository: bitnamilegacy/redis-sentinel
-    tag: 8.2.1-debian-12-r0
+    repository: favish/bitnami-redis-sentinel
+    tag: 8.2-debian-12
     digest: ""
     ## Specify a imagePullPolicy
     ## ref: https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
@@ -1784,8 +1784,8 @@ metrics:
   ##
   image:
     registry: docker.io
-    repository: bitnamilegacy/redis-exporter
-    tag: 1.76.0-debian-12-r0
+    repository: favish/bitnami-redis-exporter
+    tag: 1-debian-12
     digest: ""
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -2162,8 +2162,8 @@ volumePermissions:
   ##
   image:
     registry: docker.io
-    repository: bitnamilegacy/os-shell
-    tag: 12-debian-12-r51
+    repository: favish/bitnami-os-shell
+    tag: 12-debian-12-r32
     digest: ""
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -2295,8 +2295,8 @@ sysctl:
   ##
   image:
     registry: docker.io
-    repository: bitnamilegacy/os-shell
-    tag: 12-debian-12-r51
+    repository: favish/bitnami-os-shell
+    tag: 12-debian-12-r32
     digest: ""
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.

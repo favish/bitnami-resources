@@ -3,20 +3,18 @@
 
 annotations:
   images: |
-    - name: kubectl
-      image: docker.io/bitnami/kubectl:1.33.4-debian-12-r0
     - name: os-shell
-      image: docker.io/bitnami/os-shell:12-debian-12-r51
+      image: docker.io/favish/bitnami-os-shell:12-debian-12
     - name: redis
-      image: docker.io/bitnami/redis:8.2.1-debian-12-r0
+      image: docker.io/favish/bitnami-redis:8.2.2-debian-12
     - name: redis-exporter
-      image: docker.io/bitnami/redis-exporter:1.76.0-debian-12-r0
+      image: docker.io/favish/bitnami-redis-exporter:1-debian-12
     - name: redis-sentinel
-      image: docker.io/bitnami/redis-sentinel:8.2.1-debian-12-r0
+      image: docker.io/favish/bitnami-redis-sentinel:8.2.2-debian-12
   licenses: Apache-2.0
   tanzuCategory: service
 apiVersion: v2
-appVersion: 8.2.1
+appVersion: 8.2.2
 dependencies:
 - name: common
   repository: https://favish.github.io/bitnami-resources
@@ -30,9 +28,9 @@ keywords:
 - keyvalue
 - database
 maintainers:
-- name: Broadcom, Inc. All Rights Reserved.
-  url: https://github.com/bitnami/charts
+- name: Favish, Inc. All Rights Reserved.
+  url: https://github.com/favish/bitnami-resources
 name: redis
 sources:
-- https://github.com/bitnami/charts/tree/main/bitnami/redis
-version: 23.0.4
+- https://github.com/favish/bitnami-resources/tree/main/charts/redis
+version: 23.0.5
