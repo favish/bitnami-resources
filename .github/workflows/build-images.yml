@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       redis: ${{ steps.changes.outputs.redis }}
+      redis_exporter: ${{ steps.changes.outputs.redis_exporter }}
+      redis_sentinel: ${{ steps.changes.outputs.redis_sentinel }}
       discourse: ${{ steps.changes.outputs.discourse }}
       os_shell: ${{ steps.changes.outputs.os_shell }}
       elasticsearch: ${{ steps.changes.outputs.elasticsearch }}
@@ -38,6 +40,10 @@ jobs:
           filters: |
             redis:
               - 'containers/redis/**'
+            redis_exporter:
+              - 'containers/redis-exporter/**'
+            redis_sentinel:
+              - 'containers/redis-sentinel/**'
             discourse:
               - 'containers/discourse/**'
             os_shell:
@@ -161,6 +167,124 @@ jobs:
         with:
           context: containers/redis/${{ matrix.version }}/${{ matrix.variant }}
           file: containers/redis/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  build-redis-exporter:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.redis_exporter == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['1']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis-exporter
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Redis Exporter image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/redis-exporter/${{ matrix.version }}/${{ matrix.variant }}
+          file: containers/redis-exporter/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_ID=${{ github.run_id }}
+            GITHUB_REF=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  build-redis-sentinel:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.redis_sentinel == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['7.4', '8.2']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis-sentinel
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-{{sha}}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Redis Sentinel image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/redis-sentinel/${{ matrix.version }}/${{ matrix.variant }}
+          file: containers/redis-sentinel/${{ matrix.version }}/${{ matrix.variant }}/Dockerfile
           target: prod
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -465,6 +589,78 @@ jobs:
         run: |
           echo "=== Redis Vulnerability Scan Complete ==="
           echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
+
+  scan-redis-exporter:
+    needs: build-redis-exporter
+    if: needs.build-redis-exporter.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      matrix:
+        version: ['1']
+        variant: ['debian-12']
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner for Redis Exporter
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis-exporter:${{ matrix.version }}-${{ matrix.variant }}
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          timeout: '10m'
+        continue-on-error: true
+
+      - name: Trivy summary (Redis Exporter)
+        if: always()
+        run: |
+          echo "=== Redis Exporter Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis-exporter:${{ matrix.version }}-${{ matrix.variant }}"
+          echo "Above table shows detected vulnerabilities (if any)."
+
+  scan-redis-sentinel:
+    needs: build-redis-sentinel
+    if: needs.build-redis-sentinel.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      matrix:
+        version: ['7.4', '8.2']
+        variant: ['debian-12']
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          # Docker Hub is the default registry
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner for Redis Sentinel
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis-sentinel:${{ matrix.version }}-${{ matrix.variant }}
+          format: 'table'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          timeout: '10m'
+        continue-on-error: true
+
+      - name: Trivy summary (Redis Sentinel)
+        if: always()
+        run: |
+          echo "=== Redis Sentinel Vulnerability Scan Complete ==="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.OWNER }}/bitnami-redis-sentinel:${{ matrix.version }}-${{ matrix.variant }}"
           echo "Above table shows detected vulnerabilities (if any)."
 
   scan-discourse:
