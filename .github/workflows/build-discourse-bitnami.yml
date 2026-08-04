@@ -1,0 +1,90 @@
+name: Build discourse-bitnami
+
+# Kept separate from build-images.yml: that workflow's `discourse` filter covers
+# containers/discourse (the from-scratch Puma build) and publishes to Docker Hub,
+# while this image is a Bitnami derivative consumed from GHCR.
+
+on:
+  push:
+    branches: [main]
+    paths: ['containers/discourse-bitnami/**', '.github/workflows/build-discourse-bitnami.yml']
+  pull_request:
+    branches: [main]
+    paths: ['containers/discourse-bitnami/**', '.github/workflows/build-discourse-bitnami.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/discourse-bitnami
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        version: ['3.4.2']
+        variant: ['debian-12']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }}-r${{ github.run_number }}
+            type=raw,value=${{ matrix.version }}-${{ matrix.variant }},enable={{is_default_branch}}
+            type=sha,prefix=${{ matrix.version }}-${{ matrix.variant }}-
+
+      - name: Build and push
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: containers/discourse-bitnami/${{ matrix.version }}/${{ matrix.variant }}
+          # amd64 only: the target cluster runs e2-standard-4 nodes, and the
+          # asset build is slow enough that emulating arm64 would double the
+          # build for an architecture nothing deploys to.
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          {
+            echo "### discourse-bitnami"
+            echo
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
