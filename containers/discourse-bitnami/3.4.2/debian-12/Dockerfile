@@ -48,6 +48,15 @@ RUN git clone "${ADPLUGIN_REPOSITORY}" plugins/discourse-adplugin \
 
 RUN SKIP_DB_AND_REDIS=1 bundle exec rake assets:precompile
 
+# The build runs as root, so everything it just wrote is root-owned. At runtime
+# Passenger and the rake tasks run as the unprivileged `discourse` user, which
+# then cannot write the CSS cache or the log and dies with EACCES on the first
+# boot. Restore the ownership the base image ships (discourse:root, group
+# writable) and drop the build's cache, which is of no use at runtime.
+RUN rm -rf tmp/cache \
+    && chown -R discourse:root public/assets plugins tmp log \
+    && chmod -R g+rwX public/assets plugins tmp log
+
 # Tells the Bitnami startup script to compile CSS only. The JavaScript build it
 # would otherwise run is the one baked above.
 ENV DISCOURSE_PRECOMPILE_ASSETS=no
